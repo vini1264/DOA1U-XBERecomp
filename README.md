@@ -19,7 +19,6 @@ The latest version of [DOA1U-XBERecomp](https://github.com/vini1264/DOA1U-XBERec
 ## Features
 
 ### Display
-- **Monitor** - Choose which monitor the game is displayed on.
 - **Display Mode** - Switch between Fullscreen, Borderless and Windowed.
 - **Resolution** - Lists every mode your monitor reports and defaults to your desktop resolution, replacing the original 640x480 resolution.
 - **Render Resolution** - Renders the game at 25% to 400% of the output resolution, allowing supersampling or downscaling independent of the window size.
