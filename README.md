@@ -11,19 +11,25 @@ This port was created using the [Xbox XBE Recomp](https://github.com/TGP482/Xbox
 
 - Put your game files in the `assets` folder. This can be an ISO, or the extracted data files.
 - Run `DOA1U.exe`. The first start compiles the game's code for your PC, this only happens once.
-- Recomp settings can be adjusted in `settings.toml` beside the exe.
+- Recomp Settings can be adjusted in the in-game options menu while the game is running, or through the Settings overlay, which is opened with <kbd>F10</kbd> by default.
+<img width="1366" height="768" alt="image" src="https://github.com/user-attachments/assets/0a42fcc2-cbb1-456d-ba5e-b5381691e006" />
+
 
 ## Features
 
 ### Display
-
+- **Monitor** - Choose which monitor the game is displayed on.
+- **Display Mode** - Switch between Fullscreen, Borderless and Windowed.
+- **Resolution** - Lists every mode your monitor reports and defaults to your desktop resolution, replacing the original 640x480 resolution.
+- **Render Resolution** - Renders the game at 25% to 400% of the output resolution, allowing supersampling or downscaling independent of the window size.
+- **Max Frame Rate** - Caps the frame rate to your monitor's refresh rate or a custom value, or removes the cap entirely.
+- **V-Sync** - Reduces screen tearing.
 
 ### Graphics
+- **Anisotropic Filtering** - Forces the selected anisotropic filtering level on all textures.
 
 ### Controller
 Supports Xbox, PlayStation and Switch controllers, with hot plugging and rumble.
-
-### General
 
 ### Miscellaneous
 - **Boot Splash** - Place a `splash.png` (or `.bmp`) beside the exe to display a splash screen at launch.
