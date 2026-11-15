@@ -15,6 +15,20 @@ The latest version of [DOA1U-XBERecomp](https://github.com/vini1264/DOA1U-XBERec
 - Recomp Settings can be adjusted in the in-game options menu while the game is running, or through the Settings overlay, which is opened with <kbd>F10</kbd> by default.
 <img width="1366" height="768" alt="image" src="https://github.com/user-attachments/assets/0a42fcc2-cbb1-456d-ba5e-b5381691e006" />
 
+## Screenshots
+
+<table>
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/61a349cd-1285-4554-bea0-7a9f824e3e89"></td>
+    <td><img src="https://github.com/user-attachments/assets/1b177074-2230-49cf-b67d-1e502732d5fb"></td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/6dc8bc0d-c5c7-418d-9432-184055bbe3e1" alt="Chapter 1"></td>
+    <td><img src="https://github.com/user-attachments/assets/c4944721-b04b-4061-a42f-dbff16fbd29b" alt="A fight, the HUD hidden"></td>
+  </tr>
 
 ## Features
 
