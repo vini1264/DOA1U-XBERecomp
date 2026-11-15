@@ -34,10 +34,13 @@ This port was created using the [Xbox XBE Recomp](https://github.com/TGP482/Xbox
 - **Dump Format** - Choose between PNG or DDS, which keeps the original compression and mipmaps.
 
 ### Controller
-Supports Xbox, PlayStation and Switch controllers, with hot plugging and rumble.
+- Supports Xbox, PlayStation and Switch controllers, with hot plugging and rumble.
 
 ### Miscellaneous
 - **Boot Splash** - Place a `splash.png` (or `.bmp`) beside the exe to display a splash screen at launch.
+
+## Warning
+Uncapping the framerate speeds up the game, so it's recommended to keep the framerate option at the default 60fps
 
 ## System Requirements
 
