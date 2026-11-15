@@ -28,6 +28,11 @@ This port was created using the [Xbox XBE Recomp](https://github.com/TGP482/Xbox
 ### Graphics
 - **Anisotropic Filtering** - Forces the selected anisotropic filtering level on all textures.
 
+### Textures
+- **Texture Replacement** - Replaces the game's textures with the .dds or .png images in the textures\replacement folder beside the exe.
+- **Texture Dumping** - Saves every texture the game uses into the textures\dumps folder beside the exe.
+- **Dump Format** - Choose between PNG or DDS, which keeps the original compression and mipmaps.
+
 ### Controller
 Supports Xbox, PlayStation and Switch controllers, with hot plugging and rumble.
 
