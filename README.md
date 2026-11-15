@@ -24,12 +24,6 @@ The latest version of [DOA1U-XBERecomp](https://github.com/vini1264/DOA1U-XBERec
   </tr>
 </table>
 
-<table>
-  <tr>
-    <td><img src="https://github.com/user-attachments/assets/6dc8bc0d-c5c7-418d-9432-184055bbe3e1" alt="Chapter 1"></td>
-    <td><img src="https://github.com/user-attachments/assets/c4944721-b04b-4061-a42f-dbff16fbd29b" alt="A fight, the HUD hidden"></td>
-  </tr>
-
 ## Features
 
 ### Display
