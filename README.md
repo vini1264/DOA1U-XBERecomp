@@ -23,7 +23,6 @@ The latest version of [DOA1U-XBERecomp](https://github.com/vini1264/DOA1U-XBERec
 - **Display Mode** - Switch between Fullscreen, Borderless and Windowed.
 - **Resolution** - Lists every mode your monitor reports and defaults to your desktop resolution, replacing the original 640x480 resolution.
 - **Render Resolution** - Renders the game at 25% to 400% of the output resolution, allowing supersampling or downscaling independent of the window size.
-- **Max Frame Rate** - Caps the frame rate to your monitor's refresh rate or a custom value, or removes the cap entirely.
 - **V-Sync** - Reduces screen tearing.
 
 ### Graphics
@@ -35,7 +34,7 @@ The latest version of [DOA1U-XBERecomp](https://github.com/vini1264/DOA1U-XBERec
 - **Dump Format** - Choose between PNG or DDS, which keeps the original compression and mipmaps.
 
 ### Controller
-- Supports Xbox, PlayStation and Switch controllers, with hot plugging and rumble.
+- Supports Xbox, PlayStation and Switch controllers, with hot plugging.
 
 ### Miscellaneous
 - **Boot Splash** - Place a `splash.png` (or `.bmp`) beside the exe to display a splash screen at launch.
