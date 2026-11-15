@@ -8,6 +8,7 @@ This port was created using the [Xbox XBE Recomp](https://github.com/TGP482/Xbox
 > This project does not include any game assets. You must provide the files from your own legally acquired copy of the game to install or build.
 
 ## Installation
+The latest version of [DOA1U-XBERecomp](https://github.com/vini1264/DOA1U-XBERecomp/releases) can be found in the Releases page.
 
 - Put your game files in the `assets` folder. This can be an ISO, or the extracted data files.
 - Run `DOA1U.exe`. The first start compiles the game's code for your PC, this only happens once.
