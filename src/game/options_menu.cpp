@@ -1,16 +1,6 @@
-// "RECOMP SETTINGS" in the OPTION MODE screen, between RECORDS and EXIT, drawn with the game's own text routines.
-//
-// The game, as read from Doa1.xbe (guest addresses):
-//  * The whole game runs as coroutines on XAPI fibers (see fibers.cpp); 0x520A0(n) waits n frames by yielding.
-//  * 0x3BE30(&state, player) is the top screen of OPTION MODE: a loop of {0x3AC50 controller notice, 0x520A0(1) wait,
-//    0x3AB40 background, 0x3BB00(player) pad, drawing, reaction}. [0x3369C7] is the selected row, [0x3369AD] the screen
-//    the caller (0x3DBD0) shows next: 1 GAME CONFIG, 3 AUDIO CONFIG, 4 EXTRA CONFIG, 5 RECORDS, 0xFF leave.
-//  * 0x3BB00(player) returns the pressed key: 1 up, 2 down, 4 left, 3 right, 5 or 0xD confirm, 6 back.
-//  * 0x5E740(text, x, y, color) draws big text (2 cells a character), 0x5E380(text, x, y, color) small text (1 cell).
-//  * 0x4FA70(id, n) plays a sound: 0x23 cursor, 0x24 confirm, 0x29 back, (0xFFFF, 2) stops the current one.
-//
-// The top screen is replaced here by the same loop with 6 rows. The new row runs a settings screen written in the same
-// style as GAME CONFIG, which changes the runtime's settings (the ones in the F10 menu) and saves them on leaving.
+// "RECOMP SETTINGS" and "INPUT" (players' devices, KEYBOARD KEYS) in the OPTION MODE screen, between RECORDS and EXIT, drawn with the game's own
+// text routines.
+
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -32,6 +22,8 @@
 #include "audio/audio.h"
 #include "kernel/memory.h"
 #include "xdk/hle.h"
+#include "../common/keyboard.h"
+#include "../common/players.h"
 
 using namespace kernel;
 
@@ -73,7 +65,7 @@ struct Game {
         Call(kBackground);
     }
     uint8_t Pad(uint32_t player) { return uint8_t(Call(kReadPad, {player})); }
-    uint32_t Put(int slot, const std::string& text) {  // a text in guest memory, 40 bytes a slot
+    uint32_t Put(int slot, const std::string& text) {  // a text in guest memory, 40 bytes a slot, kTextSlots of them
         uint32_t at = scratch + 40u * slot;
         std::memset(HostPtr(at), 0, 40);
         std::memcpy(HostPtr(at), text.c_str(), std::min<size_t>(text.size(), 39));
@@ -87,8 +79,9 @@ struct Game {
     }
 };
 
+constexpr int kTextSlots = 64;
 uint32_t Scratch() {
-    static uint32_t at = mem::AllocSystem(40 * 24);
+    static uint32_t at = mem::AllocSystem(40 * kTextSlots);
     return at;
 }
 
@@ -262,10 +255,192 @@ void SettingsScreen(Game& g, uint32_t player) {
     }
 }
 
+// ---- the keyboard keys screen ------------------------------------------------------------------------------------
+//
+// A row an action (movement, the fight actions of BUTTON CONFIG, the menu buttons) with its two keys, then RESET TO
+// DEFAULTS and EXIT. Up and down choose the row, left and right
+// the key; A (or START) waits for a key: Esc cancels, Delete clears. B leaves and saves.
+
+constexpr int kKeysVisible = 9;  // button rows on screen at a time
+constexpr int kKeysY = 6, kKeysExitY = 25, kKeysHelpY = 27;
+constexpr int kKeyNameX = 5, kKey1X = 20, kKey2X = 30;
+
+void DrawKeys(Game& g, int sel, int slot, int top, int capture_slot, const char* help) {
+    const int buttons = keyboard::Count();
+    const int rows = buttons + 1;  // and RESET TO DEFAULTS; EXIT apart
+    int t = 24;                    // text slots 24 on are this screen's
+    g.Small(g.Put(t++, "KEYBOARD KEYS"), 14, 2, 5);
+    int cursor_y = kKeysExitY;
+    for (int k = 0; k < kKeysVisible && top + k < rows; k++) {
+        const int row = top + k;
+        const int y = kKeysY + 2 * k;
+        if (row == sel) cursor_y = y;
+        if (row == buttons) {
+            g.Small(g.Put(t++, "RESET TO DEFAULTS"), kKeyNameX, y, 3);
+            continue;
+        }
+        g.Small(g.Put(t++, keyboard::Name(row)), kKeyNameX, y, 3);
+        for (int s = 0; s < keyboard::kSlots; s++) {
+            const bool cell = row == sel && s == slot;
+            const std::string key =
+                cell && capture_slot >= 0 ? "PRESS KEY" : keyboard::KeyName(keyboard::Key(row, s));
+            g.Small(g.Put(t++, key), s ? kKey2X : kKey1X, y, cell ? 4 : 3);
+        }
+    }
+    g.Small(kStrExit, kKeyNameX, kKeysExitY, 3);
+    g.Small(kStrCursor, kKeyNameX - 2, cursor_y, 4);
+    g.Small(g.Put(t++, help), 2, kKeysHelpY, 3);
+}
+
+void KeysScreen(Game& g, uint32_t player) {
+    const int buttons = keyboard::Count();
+    const int count = buttons + 2;  // RESET TO DEFAULTS, EXIT
+    int sel = 0, slot = 0, top = 0;
+    for (;;) {
+        g.Frame();
+        const uint8_t key = g.Pad(player);
+        bool leave = false;
+        if (key == kUp) {
+            g.Sound(0x23, 1);
+            sel = (sel + count - 1) % count;
+        } else if (key == kDown) {
+            g.Sound(0x23, 1);
+            sel = (sel + 1) % count;
+        } else if ((key == kLeft || key == kRight) && sel < buttons) {
+            g.Sound(0x23, 1);
+            slot ^= 1;
+        } else if (key == kBack) {
+            leave = true;
+        } else if (key == kConfirm || key == kStart) {
+            if (sel == count - 1) {
+                leave = true;
+            } else if (sel == buttons) {
+                g.Sound(0x24, 1);
+                keyboard::ResetDefaults();
+            } else {
+                // wait for a key, drawing as we go; the pad's B cancels too
+                g.Sound(0x24, 1);
+                keyboard::SetCapturing(true);
+                for (;;) {
+                    g.Frame();
+                    if (sel < top) top = sel;
+                    if (sel >= top + kKeysVisible && sel < buttons + 1) top = sel - kKeysVisible + 1;
+                    DrawKeys(g, sel, slot, top, slot, "ESC: CANCEL   DELETE: CLEAR");
+                    const int vk = keyboard::PressedKey();
+                    const uint8_t pad = g.Pad(player);
+                    if (vk == VK_ESCAPE || pad == kBack) {
+                        g.Sound(0x29, 1);
+                        break;
+                    }
+                    if (vk == VK_DELETE) {
+                        keyboard::Set(sel, slot, 0);
+                        g.Sound(0x23, 1);
+                        break;
+                    }
+                    if (vk && vk != VK_F10) {
+                        keyboard::Set(sel, slot, vk);
+                        g.Sound(0x24, 1);
+                        break;
+                    }
+                }
+                keyboard::SetCapturing(false);
+            }
+        }
+
+        if (sel < buttons + 1) {
+            if (sel < top) top = sel;
+            if (sel >= top + kKeysVisible) top = sel - kKeysVisible + 1;
+        }
+        DrawKeys(g, sel, slot, top, -1, "A: SET KEY   LEFT/RIGHT: KEY 1 OR 2");
+
+        if (leave) {
+            {
+                std::lock_guard<std::recursive_mutex> lock(app::UiLock());
+                app::Save();  // [keyboard], through GameInfo::save
+            }
+            g.Sound(0xFFFF, 2);
+            g.Sound(0x29, 1);
+            return;
+        }
+    }
+}
+
+// ---- the input screen ---------------------------------------------------------------------------------------------
+//
+// PLAYER 1 to 4, each player's devices (left and right, or A, step through them: KEYBOARD + CONTROLLER 1-4,
+// CONTROLLER 1-4, KEYBOARD, NONE; a device another player had goes to them in exchange), KEYBOARD KEYS and EXIT.
+// B leaves and saves.
+
+constexpr int kInputY = 9, kInputValueX = 15;
+
+void DrawInput(Game& g, int sel) {
+    int t = 24;
+    g.Small(g.Put(t++, "INPUT"), 17, 2, 5);
+    for (int p = 0; p < players::kPlayers; p++) {
+        const int y = kInputY + 2 * p;
+        const int choice = players::Choice(p);
+        g.Small(g.Put(t++, "PLAYER " + std::to_string(p + 1)), 5, y, 3);
+        g.Small(g.Put(t++, players::ChoiceName(choice)), kInputValueX, y, sel == p ? 4 : 3);
+    }
+    const int keys_y = kInputY + 2 * players::kPlayers + 1;
+    const int exit_y = keys_y + 3;
+    g.Small(g.Put(t++, "KEYBOARD KEYS"), 5, keys_y, 3);
+    g.Small(kStrExit, 5, exit_y, 3);
+    const int cursor_y = sel < players::kPlayers ? kInputY + 2 * sel : sel == players::kPlayers ? keys_y : exit_y;
+    g.Small(kStrCursor, 3, cursor_y, 4);
+    std::string help;
+    if (sel < players::kPlayers) {
+        const int choice = players::Choice(sel);
+        help = players::Missing(choice)
+                   ? "CONTROLLER " + std::to_string(players::ControllerOf(choice) + 1) + " IS NOT PLUGGED IN"
+                   : "LEFT/RIGHT: CHANGE DEVICES";
+    }
+    g.Small(g.Put(t++, help), 2, kKeysHelpY, 3);
+}
+
+void InputScreen(Game& g, uint32_t player) {
+    const int count = players::kPlayers + 2;  // KEYBOARD KEYS, EXIT
+    int sel = 0;
+    for (;;) {
+        g.Frame();
+        const uint8_t key = g.Pad(player);
+        bool leave = false;
+        if (key == kUp) {
+            g.Sound(0x23, 1);
+            sel = (sel + count - 1) % count;
+        } else if (key == kDown) {
+            g.Sound(0x23, 1);
+            sel = (sel + 1) % count;
+        } else if (key == kBack) {
+            leave = true;
+        } else if (sel < players::kPlayers && (key == kLeft || key == kRight || key == kConfirm)) {
+            g.Sound(0x23, 1);
+            players::Step(sel, key == kLeft ? -1 : 1);
+        } else if (key == kConfirm || key == kStart) {
+            if (sel == players::kPlayers) {
+                g.Sound(0x24, 1);
+                KeysScreen(g, player);
+            } else if (sel == count - 1) {
+                leave = true;
+            }
+        }
+        DrawInput(g, sel);
+        if (leave) {
+            {
+                std::lock_guard<std::recursive_mutex> lock(app::UiLock());
+                app::Save();  // [players] and [keyboard], through GameInfo::save
+            }
+            g.Sound(0xFFFF, 2);
+            g.Sound(0x29, 1);
+            return;
+        }
+    }
+}
+
 // ---- the top screen of OPTION MODE ------------------------------------------------------------------------------
 
-constexpr int kTopRows = 6;  // GAME, AUDIO, EXTRA, RECORDS, RECOMP SETTINGS, EXIT
-constexpr int kTopY[kTopRows] = {11, 13, 15, 17, 19, 22};
+constexpr int kTopRows = 7;  // GAME, AUDIO, EXTRA, RECORDS, RECOMP SETTINGS, INPUT, EXIT
+constexpr int kTopY[kTopRows] = {11, 13, 15, 17, 19, 21, 24};
 
 void DrawTop(Game& g, int sel) {
     const bool locked = R16(kUnlocked) == 0xFFC0;
@@ -275,7 +450,8 @@ void DrawTop(Game& g, int sel) {
     g.Big(locked ? kStrExtraLocked : kStrExtra, 10, kTopY[2], 3);
     g.Big(kStrRecords, 10, kTopY[3], 3);
     g.Big(g.Put(20, "RECOMP SETTINGS"), 10, kTopY[4], 3);
-    g.Big(kStrExit, 10, kTopY[5], 3);
+    g.Big(g.Put(21, "INPUT"), 10, kTopY[5], 3);
+    g.Big(kStrExit, 10, kTopY[6], 3);
     g.Small(kStrCursor, 8, kTopY[std::clamp(sel, 0, kTopRows - 1)], 4);
 }
 
@@ -321,10 +497,12 @@ X86_FUNC(sub_0003BE30) {
             const int sel = selected;
             if (sel == 4) {
                 SettingsScreen(g, player);  // ours, then back to this screen
+            } else if (sel == 5) {
+                InputScreen(g, player);
             } else {
                 // GAME CONFIG 1, AUDIO CONFIG 3, EXTRA CONFIG 4, RECORDS 5, EXIT leaves
-                static const uint8_t screens[] = {1, 3, 4, 5, 0, 0xFF};
-                if (sel == 5) {
+                static const uint8_t screens[] = {1, 3, 4, 5, 0, 0, 0xFF};
+                if (sel == 6) {
                     selected = 0;
                     G<uint8_t>(kNextScreen) = 0xFF;
                 } else {

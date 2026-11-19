@@ -1,4 +1,5 @@
 #include "app/app.h"
+#include "players.h"
 #include "menu.h"
 
 // what the runtime asks of the game; strings must be set, hooks may stay null
@@ -12,8 +13,8 @@ const app::GameInfo app::kGame = {
     .missing = L"Put the game in the assets folder: its disc image (.iso), or Doa1.xbe with its folders beside it.",
     .images = {{"Doa1.xbe", "DOA1U"}},  // each recompiled xbe and its exe, for title launches
     .options = {},                        // game settings kept in the settings file
-    .load = nullptr,                      // reads more from the settings file's toml::table
-    .save = nullptr,                      // writes more into it
+    .load = players::Load,                // reads more from the settings file's toml::table: [players], [keyboard]
+    .save = players::Save,                // writes more into it
     .init = nullptr,                      // after the settings load, before the window and boot
     .loaded = nullptr,                    // image in memory, before its entry point runs
     .window = nullptr,                    // the game window is up

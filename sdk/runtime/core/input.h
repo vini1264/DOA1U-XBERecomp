@@ -17,4 +17,10 @@ uint16_t HeldOnAnyController();  // face buttons as XINPUT_GAMEPAD_A/B/X/Y masks
 Pad Poll(int port);
 void Rumble(int port, uint16_t left, uint16_t right);
 
+// Which controller a console port reads: 0-3 in the order they were plugged in, -1 none. Port n reads controller n
+// until told otherwise; the game's settings decide the rest (players' input devices).
+void SetController(int port, int controller);
+int ControllerOf(int port);
+bool ControllerConnected(int controller);
+
 }  // namespace input

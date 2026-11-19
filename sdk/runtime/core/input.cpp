@@ -19,6 +19,13 @@ namespace {
 std::mutex g_lock;
 bool g_sdl = false;
 SDL_Gamepad* g_pads[4] = {};
+int g_map[4] = {0, 1, 2, 3};  // the controller each port reads, -1 none
+
+SDL_Gamepad* PadOf(int port) {
+    if (port < 0 || port >= 4) return nullptr;
+    int c = g_map[port];
+    return c >= 0 && c < 4 ? g_pads[c] : nullptr;
+}
 
 void AddPad(SDL_JoystickID id) {
     for (SDL_Gamepad* pad : g_pads)
@@ -28,6 +35,11 @@ void AddPad(SDL_JoystickID id) {
     *slot = SDL_OpenGamepad(id);
     const char* name = *slot ? SDL_GetGamepadName(*slot) : SDL_GetError();
     LOGI("input: controller %d %s: %s", int(slot - g_pads) + 1, *slot ? "plugged in" : "failed to open", name ? name : "");
+    if (*slot) {
+        SDL_PropertiesID props = SDL_GetGamepadProperties(*slot);
+        LOGI("input: controller %d rumble %s", int(slot - g_pads) + 1,
+             SDL_GetBooleanProperty(props, SDL_PROP_GAMEPAD_CAP_RUMBLE_BOOLEAN, false) ? "supported" : "not reported");
+    }
 }
 
 void RemovePad(SDL_JoystickID id) {
@@ -85,7 +97,7 @@ Pad Poll(int port) {
     {
         std::lock_guard lock(g_lock);
         UpdatePads();
-        if (SDL_Gamepad* pad = port >= 0 && port < 4 ? g_pads[port] : nullptr) {
+        if (SDL_Gamepad* pad = PadOf(port)) {
             p.connected = true;
             constexpr SDL_GamepadButton kButtons[] = {
                 SDL_GAMEPAD_BUTTON_DPAD_UP,   SDL_GAMEPAD_BUTTON_DPAD_DOWN,  SDL_GAMEPAD_BUTTON_DPAD_LEFT,
@@ -126,11 +138,43 @@ uint16_t HeldOnAnyController() {
     return held;
 }
 
-// the motors run until set again
+// The motors run until set again, as on the Xbox. SDL stops an effect once its duration is up, and a duration of 0
+// is up at once (the motors never started): the longest it takes is asked instead, and the game's next setting,
+// a stop among them, replaces it.
+constexpr uint32_t kRumbleForever = 0xFFFF;  // SDL holds an effect at most this long, in ms
+
 void Rumble(int port, uint16_t left, uint16_t right) {
     if (app::kGame.rumble) app::kGame.rumble(port, left, right);
     std::lock_guard lock(g_lock);
-    if (port >= 0 && port < 4 && g_pads[port]) SDL_RumbleGamepad(g_pads[port], left, right, 0);
+    SDL_Gamepad* pad = PadOf(port);
+    bool ok = pad && SDL_RumbleGamepad(pad, left, right, (left || right) ? kRumbleForever : 0);
+    // the game sets the motors each frame: the log has each change, the first 64
+    static uint32_t last[4] = {};
+    const uint32_t now = (uint32_t(left) << 16) | right;
+    if (port >= 0 && port < 4 && now != last[port]) {
+        last[port] = now;
+        LOG_FIRST(64, "input: rumble port %d (controller %d) %04X %04X: %s", port, g_map[port] + 1, left, right,
+                  !pad ? "no controller" : ok ? "ok" : SDL_GetError());
+    }
+}
+
+void SetController(int port, int controller) {
+    if (port < 0 || port >= 4) return;
+    std::lock_guard lock(g_lock);
+    if (SDL_Gamepad* old = PadOf(port)) SDL_RumbleGamepad(old, 0, 0, 0);  // a motor left running stays so
+    g_map[port] = controller >= 0 && controller < 4 ? controller : -1;
+}
+
+int ControllerOf(int port) {
+    if (port < 0 || port >= 4) return -1;
+    std::lock_guard lock(g_lock);
+    return g_map[port];
+}
+
+bool ControllerConnected(int controller) {
+    std::lock_guard lock(g_lock);
+    UpdatePads();
+    return controller >= 0 && controller < 4 && g_pads[controller];
 }
 
 }  // namespace input
